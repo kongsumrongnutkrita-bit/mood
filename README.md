@@ -1,27 +1,61 @@
-# MoodTune 🎧 - Spotify Mood Co-Pilot
+# MoodTune - Spotify Mood Co-Pilot 🎧
 
-MoodTune is a premium, interactive single-page React web application that serves as a Spotify mood co-pilot. It curates custom playlist suggestions, syncs bilingual lyrics, and generates custom album cover art dynamically based on your current emotional state.
+MoodTune เป็นเว็บแอปพลิเคชันสำหรับเล่นเพลงตามอารมณ์ (Mood) ของผู้ใช้ โดยออกแบบมาให้มีหน้าตาสวยงาม ทันสมัย (Premium UI) ให้ความรู้สึกคล้าย Spotify ผสมผสานกับแอนิเมชันแผ่นเสียงคลาสสิก
 
-## 🚀 Key Features
+โปรเจกต์นี้ทำงานด้วยรูปแบบ **Single HTML File** ที่รวมเทคโนโลยีอย่าง React, Tailwind CSS และ HTML5 Audio API ไว้ในไฟล์เดียว ทำให้ง่ายต่อการนำไปใช้งานและพัฒนาต่อโดยไม่ต้องติดตั้ง Node.js หรือระบบ Build ที่ซับซ้อน
 
-1. **Intelligent Mood Cards**: Choose from 8 beautifully designed mood states (Happy, Sad, Angry, Surprised, Fearful, Disgusted, Calm, Excited), each styled with dynamic, custom-glow glassmorphism.
-2. **AI Live DJ**: Describe your exact emotional state or music request in natural language (e.g., *"chill acoustic Thai songs for a rainy Sunday"*), and the AI Co-Pilot will construct a custom playlist of 6 real-world hits.
-3. **Bilingual Lyrics Sync**: Synchronized display showing Thai verses with adjacent English translations in a clean, scrollable interface.
-4. **AI Album Cover Generator**: Automatically draws high-quality graphical album artwork using Google's Imagen model matching the theme and title of your active song.
-5. **Interactive Music Controller**: Adjust track progress bars, play/pause states, and watch the vinyl record spin and pop out of the album sleeve in real time.
-6. **Secure Settings Panel**: A local configurations modal to save your Google Gemini API Key in browser storage safely.
+## 🚀 เทคโนโลยีที่ใช้
+- **React 18**: โหลดผ่าน CDN (Standalone) สำหรับจัดการ State และ Component
+- **Babel**: คอมไพล์ JSX เป็น JavaScript แบบเรียลไทม์ในเบราว์เซอร์
+- **Tailwind CSS**: จัดการความสวยงามผ่าน CDN
+- **HTML5 Audio API**: ระบบเล่นเสียงภายใน ไม่พึ่งพา API ภายนอก หมดปัญหาลิขสิทธิ์
 
-## 🛠️ Technology Stack
-- **Framework**: React.js (v18)
-- **Styling**: Tailwind CSS (v3) + Custom CSS variables and animations
-- **Icons**: Custom inline React SVGs (lucide inspired)
-- **APIs**:
-  - **Gemini**: Generates custom playlists and bilingual lyrics.
-  - **Imagen**: Generates dynamic cover art.
+---
 
-## 💻 How to Run Locally
+## 🛠️ วิธีการใช้งานเบื้องต้น (How to Use)
 
-Since the application is fully self-contained in a single page:
-1. Clone or download this repository.
-2. Double-click [index.html](index.html) to open it in your browser.
-3. (Optional) Click the **Settings Gear** icon on the top right to configure your Gemini API key and activate the AI Live DJ.
+เนื่องจากโปรเจกต์ไม่ได้ใช้ Server ในการเรนเดอร์ คุณสามารถเปิดใช้งานได้ 2 วิธี:
+1. **เล่นผ่าน GitHub Pages**: เข้าไปที่ URL ของ GitHub Pages ที่คุณตั้งค่าไว้ (เช่น `https://nus1315.github.io/Mood/`)
+2. **เล่นบนเครื่อง (Local)**: ดับเบิลคลิกเปิดไฟล์ `index.html` ผ่านเบราว์เซอร์ (Chrome, Edge, Safari) ได้เลยทันที
+
+---
+
+## 🎵 วิธีเพิ่มเพลงหรือแก้รายการเพลง
+
+ปัจจุบันระบบใช้ไฟล์ MP3 ในโปรเจกต์แทนการดึงเสียงจาก YouTube หรือ Spotify เพื่อแก้ปัญหาเน็ตเวิร์คและลิขสิทธิ์
+
+**ขั้นตอนการเปลี่ยนเพลง:**
+1. ดาวน์โหลดไฟล์เพลงนามสกุล `.mp3`
+2. นำไฟล์เพลงไปวางไว้ในโฟลเดอร์ `assets/audio/`
+3. เปิดไฟล์ `index.html` ด้วย Text Editor
+4. เลื่อนหาบรรทัดที่เขียนว่า `const SONGS = [...]` (ประมาณบรรทัดที่ 90)
+5. แก้ไขข้อมูลใน Array ให้ตรงกับไฟล์ของคุณ เช่น:
+   ```javascript
+   { 
+     id: 1, 
+     title: "ชื่อเพลง", 
+     artist: "ชื่อศิลปิน", 
+     mood: "happy", // happy, sad, chill, hype
+     audioSrc: "assets/audio/your-song-file.mp3" 
+   }
+   ```
+6. บันทึกไฟล์ และนำขึ้น GitHub (Commit & Push)
+
+---
+
+## 💻 แนวทางการพัฒนาต่อ (Future Development)
+
+หากต้องการนำไปพัฒนาต่อยอดเป็นโปรเจกต์จบ (IS) หรือแอปที่สมบูรณ์ขึ้น สามารถทำได้ดังนี้:
+
+1. **ระบบแสดงเนื้อเพลง (Lyrics System)**
+   - เพิ่มข้อมูล `lyrics: "เนื้อเพลง..."` เข้าไปใน Array `SONGS`
+   - นำข้อมูล `lyrics` มาแสดงผลแบบ Scroll ได้ใต้หน้าปกแผ่นเสียง
+   
+2. **ปรับแต่งหน้าปก (Album Art)**
+   - เพิ่มรูปภาพหน้าปกแยกตามเพลง โดยใส่ `coverSrc: "assets/images/cover1.jpg"` และแก้ไข UI จากเดิมที่แสดงตัวอักษรตัวแรก ให้กลายเป็นรูปภาพ `<img src={...} />`
+
+3. **ย้ายไประบบ Vite + React (Production Ready)**
+   - หากโค้ดใน `index.html` ยาวและซับซ้อนเกินไป ควรพิจารณาแยกไฟล์ (Componentization) ด้วยการสร้างโปรเจกต์ใหม่ด้วย `npm create vite@latest` จะทำให้โค้ดจัดการง่ายขึ้น
+
+4. **ระบบ Backend / Database**
+   - เชื่อมต่อกับ Firebase หรือ MongoDB เพื่อให้ผู้ใช้สามารถจัดเก็บ Playlist ของตัวเอง หรือดึงข้อมูลเพลงจากฐานข้อมูลแทนการ Hardcode ในไฟล์ HTML
