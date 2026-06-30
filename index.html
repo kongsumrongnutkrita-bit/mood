@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoodTune - Spotify Mood Co-Pilot</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            nunito: ['Nunito', 'sans-serif'],
+            lora: ['Lora', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom animations for premium interactions */
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spin-slow 15s linear infinite;
+    }
+    
+    @keyframes soundBar {
+      0% { height: 4px; }
+      100% { height: 16px; }
+    }
+    .animate-sound-bar {
+      animation: soundBar 0.8s ease-in-out infinite alternate;
+    }
+    
+    /* Scrollbar Styling for premium Spotify-like feel */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(10, 10, 10, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+
+  <!-- React & Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-neutral-950 text-white font-sans antialiased overflow-x-hidden">
+
+  <!-- React Root -->
+  <div id="root"></div>
+
+  <!-- React & App Logic -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // React SVG Icons (avoiding external CDN icon issues)
+    function Play({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+          <polygon points="6 3 20 12 6 21 6 3" />
+        </svg>
+      );
+    }
+
+    // Pause Icon
+    function Pause({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+          <rect x="14" y="4" width="4" height="16" rx="1" />
+          <rect x="6" y="4" width="4" height="16" rx="1" />
+        </svg>
+      );
+    }
+
+    // X Icon
+    function X({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      );
+    }
+
+    // Arrow Left Icon
+    function ArrowLeft({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      );
+    }
+
+    // Search Icon
+    function Search({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      );
+    }
+
+    // Sparkles Icon
+    function Sparkles({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707-.707M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
+        </svg>
+      );
+    }
+
+    // Loader Spinner Icon
+    function Loader2({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`animate-spin ${className}`}>
+          <line x1="12" y1="2" x2="12" y2="6"></line>
+          <line x1="12" y1="18" x2="12" y2="22"></line>
+          <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+          <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+          <line x1="2" y1="12" x2="6" y2="12"></line>
+          <line x1="18" y1="12" x2="22" y2="12"></line>
+          <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+          <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+        </svg>
+      );
+    }
+
+    // Chevron Right Icon
+    function ChevronRight({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      );
+    }
+
+    // Settings Gear Icon
+    function SettingsIcon({ size = 20, className = "" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      );
+    }
+
+    // Static Emotion Configurations
+    const EMOTIONS = [
+      { id: "happy", emoji: "😊", label: "Happy", thai: "มีความสุข", color: "#fbbf24", bgGradient: "from-amber-500/20 via-neutral-950 to-neutral-950", glowColor: "rgba(251, 191, 36, 0.15)" },
+      { id: "sad", emoji: "😢", label: "Sad", thai: "เศร้า", color: "#60a5fa", bgGradient: "from-blue-600/20 via-neutral-950 to-neutral-950", glowColor: "rgba(96, 165, 250, 0.15)" },
+      { id: "angry", emoji: "😠", label: "Angry", thai: "โกรธ", color: "#f87171", bgGradient: "from-red-600/20 via-neutral-950 to-neutral-950", glowColor: "rgba(248, 113, 113, 0.15)" },
+      { id: "surprised", emoji: "😲", label: "Surprised", thai: "ตกใจ", color: "#fb923c", bgGradient: "from-orange-500/20 via-neutral-950 to-neutral-950", glowColor: "rgba(251, 146, 60, 0.15)" },
+      { id: "fearful", emoji: "😨", label: "Fearful", thai: "กลัว", color: "#a78bfa", bgGradient: "from-violet-600/20 via-neutral-950 to-neutral-950", glowColor: "rgba(167, 139, 250, 0.15)" },
+      { id: "disgusted", emoji: "🤢", label: "Disgusted", thai: "รังเกียจ", color: "#34d399", bgGradient: "from-emerald-600/20 via-neutral-950 to-neutral-950", glowColor: "rgba(52, 211, 153, 0.15)" },
+      { id: "calm", emoji: "😌", label: "Calm", thai: "สงบ", color: "#c084fc", bgGradient: "from-purple-600/20 via-neutral-950 to-neutral-950", glowColor: "rgba(192, 132, 252, 0.15)" },
+      { id: "excited", emoji: "🤩", label: "Excited", thai: "ตื่นเต้น", color: "#f472b6", bgGradient: "from-pink-600/20 via-neutral-950 to-neutral-950", glowColor: "rgba(244, 114, 182, 0.15)" },
+    ];
+
+    // Static Preloaded Songs DB
+    const SONGS = [
+      // Happy (มีความสุข)
+      { id: 1, title: "วัดปะหล่ะ? (TEST ME)", artist: "4EVE", duration: "3:45", album: "Tales of 4EVE", mood: "happy",
+        lyrics: `วัดปะหล่ะ? เธอน่ะลองดูไหม ถ้าเธอไม่มีใคร\nมาคบกันดูเดี๋ยวก็รู้ว่าน่ารักแค่ไหน\nเธอชอบคนแบบไหนลองทายดูสิ\nคนอย่างฉันน่ะพอจะมีลุ้นบ้างไหมนะ\n\nDo you want to test me? If you have no one,\nLet's date and you'll see how lovely it can be.\nWhat kind of person do you like, take a guess?\nIs there a chance for someone like me?` },
+      { id: 2, title: "พิง (Lean)", artist: "NONT TANONT", duration: "4:15", album: "กระเช้าสีดา OST", mood: "happy",
+        lyrics: `ให้ฉันได้ดูแลเธอได้ไหม ในวันที่เธอไม่เหลือใคร\nให้ฉันเป็นคนพิงไหล่ ในยามที่เธอล้มลงมา\nไม่ว่าอะไรจะเกิดขึ้น ฉันพร้อมยืนเคียงข้างเธอ\n\nLet me take care of you, okay? On the day you have no one.\nLet me be the shoulder you lean on when you fall.\nNo matter what happens, I'm ready to stand by you.` },
+      { id: 3, title: "โต๊ะริม (Melt)", artist: "NONT TANONT", duration: "3:47", album: "โต๊ะริม - Single", mood: "happy",
+        lyrics: `เธอมาทำให้ละลาย ละลาย ละลายไหลกองกับพื้น\nแอบไปยิ้มตั้งกี่หมื่นฟื้นหัวใจอีกครั้ง\nตกหลุมรักเธออีกแล้วสินะเรา\n\nYou make me melt, melt, melt down to the ground\nSmiling secretly, bringing my heart to life again\nI'm falling in love with you all over again, aren't I?` },
+      
+      // Sad (เศร้า)
+      { id: 4, title: "วาดไว้ (Recall)", artist: "BOWKYLION", duration: "4:08", album: "Recall", mood: "sad",
+        lyrics: `ส่งยิ้มให้เธอเป็นครั้งสุดท้าย ก่อนที่เราจะต้องจากกัน\nภาพวันเก่าๆ ยังคงชัดเจนอยู่ในหัวใจของฉัน\nวาดไว้ในฝันว่าเรายังมีกันตลอดไป\n\nGaining a smile for the last time before we must part.\nThe images of the old days are still vivid in my heart.\nPainted in my dreams that we would still have each other forever.` },
+      { id: 5, title: "ถ้าเราเจอกันอีก (Until We Meet Again)", artist: "Tilly Birds", duration: "4:32", album: "It's Gonna Be OK", mood: "sad",
+        lyrics: `ถ้าเราเจอกันอีกครั้งในวันหน้า จะยังคงเหมือนเดิมไหม\nคำถามที่ค้างคาใจอยู่ตรงนี้ตลอดไป\nคิดถึงเธอเหลือเกิน คนดีที่จากแสนไกล\n\nIf we meet again in the future, will it still be the same?\nThe questions lingering in my heart will remain here forever.\nI miss you so much, my dear who has gone so far.` },
+      { id: 6, title: "ใจร้าย (Cruel)", artist: "Lipta", duration: "3:56", album: "Lipta Collection", mood: "sad",
+        lyrics: `เธอทำไมใจร้ายกับฉันอย่างนี้\nทิ้งฉันไว้คนเดียวในคืนที่ไม่มีใคร\nปล่อยให้ฉันร้องไห้จนน้ำตาไม่มีจะไหล\n\nWhy are you so cruel to me like this?\nLeaving me alone in a night when there is no one.\nLetting me cry until I run out of tears.` },
+
+      // Angry (โกรธ)
+      { id: 7, title: "แดงกับเขียว", artist: "TaitosmitH", duration: "4:50", album: "TaitosmitH", mood: "angry",
+        lyrics: `ตะโกนก้องร้องป่าวไปด้วยความโกรธแค้น\nไม่ยอมสยบต่อความอยุติธรรมใดๆ\nต่อสู้เพื่อศักดิ์ศรีและความถูกต้องต่อไป\n\nShouting out loud with anger and rage,\nRefusing to submit to any injustice.\nContinuing to fight for dignity and what is right.` },
+      { id: 8, title: "ทน (Tolerate)", artist: "SPRITE & GUYGEEGEE", duration: "3:18", album: "ทน - Single", mood: "angry",
+        lyrics: `พี่ไม่มีหลุยส์วิตตอง มีแต่หนี้ก้อนโต\nเธอจะทนได้ไหมกับชีวิตโซโซ\nอย่ามาโกรธฉันเลยถ้าฉันดูแลเธอไม่ได้ดี\n\nI don't have Louis Vuitton, only a huge pile of debt.\nCan you tolerate this kind of low-key life?\nDon't be angry at me if I can't take good care of you.` },
+
+      // Surprised (ตกใจ)
+      { id: 9, title: "ตกใจหมดเลย", artist: "กระแต อาร์สยาม", duration: "3:20", album: "Surprise Hits", mood: "surprised",
+        lyrics: `ตกใจหมดเลยที่เจอกันตรงนี้ไม่ได้เตรียมใจ\nหัวใจเต้นแรงรัวคล้ายกับจะระเบิดออกไป\nไม่คิดไม่ฝันว่าเธอจะมาเซอร์ไพรส์กันแบบนี้\n\nGot so surprised meeting you here, wasn't prepared.\nHeart beats so fast as if it's going to burst.\nNever dreamed or expected that you would surprise me like this.` },
+
+      // Fearful (กลัว)
+      { id: 10, title: "กลัวเครื่องบิน", artist: "Illslick", duration: "3:58", album: "Illslick Mixtape", mood: "fearful",
+        lyrics: `ไม่ได้กลัวความสูง แต่กลัวเครื่องบินมันจะตก\nกลัวใจเธอนั่นแหละจะเปลี่ยนผันและตลบ\nในคืนที่มืดมิดและหนาวเหน็บหัวใจสั่นกลัว\n\nNot afraid of heights, but afraid the plane will crash.\nActually afraid your heart will change and turn.\nOn this dark and cold night, my heart trembles with fear.` },
+
+      // Disgusted (รังเกียจ)
+      { id: 11, title: "รังเกียจกันไหม", artist: "UrboyTJ", duration: "3:40", album: "TJ Hits", mood: "disgusted",
+        lyrics: `เธอรังเกียจกันไหมที่ฉันเป็นคนแบบนี้\nไม่ได้ดีเลิศเลออะไรเหมือนใครเขา\nถ้าเธอไม่ชอบก็บอกมาตรงๆ อย่ามัวเสียเวลา\n\nDo you disgust me for being this kind of person?\nNot perfect or grand like anyone else.\nIf you don't like it, just tell me straight up, don't waste time.` },
+
+      // Calm (สงบ)
+      { id: 12, title: "ดวงเดือน", artist: "JOEY PHUWASIT", duration: "4:00", album: "ดวงเดือน", mood: "calm",
+        lyrics: `มองดูดวงเดือนส่องแสงนวลตาในคืนนี้\nจิตใจสงบนิ่งผ่อนคลายไปกับความงาม\nลืมเรื่องวุ่นวายแล้วนอนหลับฝันดี\n\nLooking at the moon shining gently tonight.\nThe mind is calm and relaxed with the beauty.\nForget all the chaos and have a good dream.` },
+      { id: 13, title: "พิจารณา (Consider)", artist: "Musketeers", duration: "3:52", album: "Consider - Single", mood: "calm",
+        lyrics: `ปล่อยจิตใจล่องลอยไปกับลมและสายน้ำ\nทบทวนพิจารณาเรื่องราวชีวิตที่ผ่านมา\nทุกอย่างจะดีขึ้นเอง แค่ยอมรับและปล่อยวาง\n\nLetting the mind drift away with the wind and the stream.\nReviewing and considering the stories of past life.\nEverything will get better, just accept and let it go.` },
+
+      // Excited (ตื่นเต้น) - Fixed Syntax
+      { id: 18, title: "เจิดจรัส", artist: "YOUNGOHM", duration: "4:21", album: "ธาตุทองซาวด์", mood: "excited",
+        lyrics: `เจิดจรัสส่องแสงระยิบระยับกลางค่ำคืน\nไม่มีวันหลับใหล ปลุกหัวใจให้ฟื้นตื่น\nมันส์กันให้สุดเหวี่ยงแบบไม่มีขีดจำกัด\n\nShining and sparkling in the middle of the night\nNever sleeping, waking up the heart to life\nRocking it to the extreme without any limits` },
+      { id: 19, title: "อยากจะกอดเธอนาน ๆ (HAVE A GOOD TIME)", artist: "BLVCKHEART", duration: "3:39", album: "HAVE A GOOD TIME", mood: "excited",
+        lyrics: `แค่อยากจะกอดเธอนานๆ ในคืนที่งดงามแบบนี้\nปล่อยให้หัวใจได้เต้นรัวไปกับจังหวะดนตรี\nลืมทุกเรื่องราวทุกข์ใจแล้วสนุกไปด้วยกัน\n\nJust want to hug you for a long time on a beautiful night like this\nLet the heart beat fast to the rhythm of the music\nForget all worries and let's have a great time together` }
+    ];
+
+    const MOOD_GRADIENTS = {
+      happy: "from-amber-400 via-orange-500 to-yellow-600",
+      sad: "from-blue-600 via-indigo-950 to-slate-900",
+      calm: "from-purple-500 via-fuchsia-600 to-indigo-950",
+      angry: "from-red-600 via-rose-800 to-black",
+      surprised: "from-orange-400 via-pink-500 to-yellow-500",
+      fearful: "from-violet-900 via-slate-950 to-purple-950",
+      disgusted: "from-emerald-600 via-teal-900 to-zinc-900",
+      excited: "from-pink-500 via-rose-500 to-amber-400"
+    };
+
+    // Mini Cover Art Renderer
+    function MiniSongCover({ mood, title }) {
+      const matchingEmotion = EMOTIONS.find((e) => e.id === mood) || EMOTIONS[6];
+      const firstLetter = title ? title.charAt(0).toUpperCase() : "M";
+      const moodGradient = MOOD_GRADIENTS[mood] || MOOD_GRADIENTS.calm;
+
+      return (
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black text-white/95 shadow-md bg-gradient-to-tr ${moodGradient} border border-white/10 relative overflow-hidden group-hover:scale-105 transition-transform`}>
+          {firstLetter}
+          <span className="absolute bottom-0 right-0 text-[10px] drop-shadow-md">{matchingEmotion.emoji}</span>
+        </div>
+      );
+    }
+
+    // Loading Splash Screen
+    function SplashScreen({ onDone }) {
+      const [progress, setProgress] = useState(0);
+
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setProgress((p) => {
+            if (p >= 100) {
+              clearInterval(interval);
+              setTimeout(onDone, 400);
+              return 100;
+            }
+            return p + 2;
+          });
+        }, 30);
+        return () => clearInterval(interval);
+      }, [onDone]);
+
+      return (
+        <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center gap-6">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#1DB954] to-emerald-400 flex items-center justify-center text-4xl shadow-lg shadow-[#1DB954]/20 animate-pulse">
+            🎧
+          </div>
+
+          <h1 className="text-4xl font-black text-white tracking-tight" style={{ fontFamily: "Lora, serif" }}>
+            MoodTune
+          </h1>
+
+          <div className="w-64 flex flex-col gap-3">
+            <div className="w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#1DB954] to-emerald-400 rounded-full transition-all duration-75"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-center text-neutral-400 text-xs font-semibold" style={{ fontFamily: "Nunito, sans-serif" }}>
+              กำลังโหลด... {progress}%
+            </p>
+          </div>
+
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="w-2.5 h-2.5 rounded-full bg-[#1DB954]"
+                style={{ animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
+              />
+            ))}
+          </div>
+
+          <style>{`@keyframes bounce { 0%,100%{transform:translateY(0);opacity:.5} 50%{transform:translateY(-8px);opacity:1} }`}</style>
+        </div>
+      );
+    }
+
+    // Settings Modal
+    function SettingsModal({ isOpen, onClose, apiKey, onSave }) {
+      const [keyInput, setKeyInput] = useState(apiKey);
+
+      useEffect(() => {
+        setKeyInput(apiKey);
+      }, [apiKey, isOpen]);
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button onClick={onClose} className="absolute top-4 right-4 text-neutral-400 hover:text-white p-1 rounded-full hover:bg-neutral-800 transition-colors">
+              <X size={18} />
+            </button>
+            <h3 className="text-lg font-bold flex items-center gap-2 text-white mb-2 font-nunito">
+              ⚙️ ตั้งค่า API Key (Settings)
+            </h3>
+            <p className="text-xs text-neutral-400 mb-4 font-nunito leading-relaxed">
+              ใส่ Google Gemini API Key เพื่อปลดล็อกฟีเจอร์ **AI Live DJ** (จัดเพลย์ลิสต์ตามใจชอบพร้อมเนื้อเพลงสองภาษา) และ **AI Cover Generator** (วาดภาพปกอัลบั้มสไตล์ Imagen)
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-400 uppercase tracking-wide mb-1.5 font-nunito">
+                  Gemini Developer API Key
+                </label>
+                <input
+                  type="password"
+                  value={keyInput}
+                  onChange={(e) => setKeyInput(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full bg-neutral-950 border border-neutral-800 focus:border-[#1DB954] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-neutral-700 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors">
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={() => {
+                    onSave(keyInput);
+                    onClose();
+                  }}
+                  className="bg-[#1DB954] hover:bg-emerald-400 text-black font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all"
+                >
+                  บันทึกการตั้งค่า
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Mood Selection Dashboard Screen
+    function MoodSelectionScreen({ onSelectEmotion, onOpenSettings, apiKey, onCustomSearch }) {
+      const [customSearch, setCustomSearch] = useState("");
+
+      const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        if (customSearch.trim()) {
+          onCustomSearch(customSearch);
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-neutral-900 to-neutral-950 text-white flex flex-col relative overflow-hidden">
+          {/* Top Bar */}
+          <div className="flex justify-between items-center px-6 py-4 border-b border-neutral-900 bg-neutral-950/70 backdrop-blur-md sticky top-0 z-40">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🎧</span>
+              <span className="text-xl font-black font-lora tracking-tight">MoodTune</span>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {apiKey ? (
+                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full font-bold">
+                  AI Active
+                </span>
+              ) : (
+                <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full font-bold">
+                  Demo Mode
+                </span>
+              )}
+              <button 
+                onClick={onOpenSettings}
+                className="p-2 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-all border border-neutral-800"
+                title="ตั้งค่า API Key"
+              >
+                <SettingsIcon size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Main Dashboard Content */}
+          <div className="flex-1 max-w-5xl mx-auto w-full px-6 py-12 flex flex-col items-center justify-center z-10 gap-10">
+            <div className="text-center space-y-4">
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight font-lora" style={{ background: "linear-gradient(to right, #ffffff, #a3a3a3)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                วันนี้คุณรู้สึกอย่างไร?
+              </h2>
+              <p className="text-neutral-400 max-w-lg text-sm md:text-base font-nunito">
+                เลือกตามอารมณ์ของคุณเพื่อเปิดเพลย์ลิสต์ที่ตรงใจ หรือพิมพ์บอก AI ดีเจส่วนตัวของคุณ
+              </p>
+            </div>
+
+            {/* Grid of Emotions */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+              {EMOTIONS.map((emotion) => (
+                <button
+                  key={emotion.id}
+                  onClick={() => onSelectEmotion(emotion.id)}
+                  className="group relative h-36 rounded-3xl overflow-hidden border border-neutral-800/80 bg-neutral-900/40 hover:bg-neutral-900/60 p-6 flex flex-col justify-between items-start text-left transition-all duration-300 hover:scale-[1.03] hover:border-neutral-700/80 shadow-lg hover:shadow-2xl"
+                >
+                  {/* Decorative glowing gradient circle on hover */}
+                  <div 
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none filter blur-2xl"
+                    style={{ background: `radial-gradient(circle, ${emotion.glowColor} 0%, transparent 70%)` }}
+                  />
+
+                  <div className="flex justify-between items-center w-full relative z-10">
+                    <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform duration-300">{emotion.emoji}</span>
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: emotion.color }} />
+                  </div>
+
+                  <div className="relative z-10">
+                    <h4 className="text-base font-black font-lora text-white/90 group-hover:text-white transition-colors">
+                      {emotion.label}
+                    </h4>
+                    <p className="text-xs text-neutral-400 font-nunito mt-0.5">
+                      {emotion.thai}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom AI DJ Prompt Bar */}
+            <form onSubmit={handleSearchSubmit} className="w-full max-w-2xl bg-neutral-900/60 backdrop-blur-md border border-neutral-800 p-4 rounded-3xl flex flex-col gap-3 relative mt-4 shadow-xl">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#1DB954]/5 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center gap-2">
+                <Sparkles className="text-[#1DB954]" size={16} />
+                <span className="text-xs font-bold font-nunito text-neutral-300 uppercase tracking-widest">
+                  AI Spotify Live DJ
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customSearch}
+                  onChange={(e) => setCustomSearch(e.target.value)}
+                  placeholder="อยากฟังเพลงสไตล์ไหน? เช่น 'ขอเพลงไทยอกหักซึ้งๆ ยุค 90' หรือ 'เพลงขับรถชิลๆ วิวทะเล'..."
+                  className="flex-1 bg-neutral-950/80 border border-neutral-800 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#1DB954] transition-colors font-nunito"
+                />
+                <button
+                  type="submit"
+                  disabled={!customSearch.trim()}
+                  className="bg-[#1DB954] hover:bg-emerald-400 text-black font-extrabold text-sm px-6 py-3 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  <span>จัดเพลง</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // Music Page Player
+    function MusicPage({ emotion, onBack, onExit, apiKey, initialCustomQuery }) {
+      const [search, setSearch] = useState("");
+      const [playing, setPlaying] = useState(false);
+      const [progress, setProgress] = useState(32);
+      const [customQuery, setCustomQuery] = useState(initialCustomQuery || "");
+      const [customPlaylist, setCustomPlaylist] = useState([]);
+      const [isAiLoading, setIsAiLoading] = useState(false);
+      const [errorMsg, setErrorMsg] = useState("");
+
+      // Real-time Cover Art States
+      const [coverUrl, setCoverUrl] = useState(null);
+      const [isCoverLoading, setIsCoverLoading] = useState(false);
+
+      const progressRef = useRef(null);
+
+      const em = EMOTIONS.find((e) => e.id === emotion) || EMOTIONS[6];
+
+      // Setup standard or dynamic custom playlists
+      const initialPlaylist = SONGS.filter((s) => s.mood === emotion);
+      const activePlaylist = customPlaylist.length > 0 ? customPlaylist : (initialPlaylist.length > 0 ? initialPlaylist : SONGS.slice(0, 3));
+
+      const [currentSong, setCurrentSong] = useState(activePlaylist[0] || SONGS[0]);
+
+      // Handle active playlist updating
+      useEffect(() => {
+        if (activePlaylist.length > 0) {
+          setCurrentSong(activePlaylist[0]);
+          setProgress(32);
+          setPlaying(false);
+        }
+      }, [emotion, customPlaylist]);
+
+      // Trigger custom search on load if provided
+      useEffect(() => {
+        if (initialCustomQuery && apiKey) {
+          fetchSpotifyAIPleylist(initialCustomQuery);
+        }
+      }, [initialCustomQuery]);
+
+      // Cover art generation via Imagen
+      useEffect(() => {
+        let isMounted = true;
+        
+        if (!apiKey) {
+          setCoverUrl(null);
+          return;
+        }
+
+        const generateSongCover = async () => {
+          setIsCoverLoading(true);
+          setCoverUrl(null);
+          try {
+            const prompt = `Album cover art for the song "${currentSong.title}" by the artist "${currentSong.artist}". It should be styled beautifully in an artistic or graphic design layout representing a ${currentSong.mood || 'musical'} mood, professional, minimalist, sleek Spotify look, without explicit overlay texts, vivid digital art, square ratio.`;
+
+            // Google AI Developer prediction format for Imagen
+            const payload = {
+              instances: [{ prompt: prompt }],
+              parameters: { sampleCount: 1, aspectRatio: "1:1" }
+            };
+            
+            // Standard model is imagen-3.0-generate-002
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+            
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              // Try alternate model/payload if 3.0 fails
+              const altPayload = {
+                instances: { prompt: prompt },
+                parameters: { sampleCount: 1 }
+              };
+              const altApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+              const altResponse = await fetch(altApiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(altPayload)
+              });
+              if (!altResponse.ok) throw new Error("Imagen generation failed.");
+              const altData = await altResponse.json();
+              const base64Bytes = altData?.predictions?.[0]?.bytesBase64Encoded;
+              if (isMounted && base64Bytes) {
+                setCoverUrl(`data:image/png;base64,${base64Bytes}`);
+              }
+              return;
+            }
+
+            const data = await response.json();
+            const base64Bytes = data?.predictions?.[0]?.bytesBase64Encoded;
+            
+            if (isMounted && base64Bytes) {
+              setCoverUrl(`data:image/png;base64,${base64Bytes}`);
+            }
+          } catch (err) {
+            console.error("Cover Art fallback enabled due to API load limits.", err);
+          } finally {
+            if (isMounted) {
+              setIsCoverLoading(false);
+            }
+          }
+        };
+
+        generateSongCover();
+        return () => {
+          isMounted = false;
+        };
+      }, [currentSong.title, currentSong.artist, currentSong.mood, apiKey]);
+
+      // Local static list filtering
+      const filtered = search
+        ? SONGS.filter((s) => s.title.toLowerCase().includes(search.toLowerCase()) || s.artist.toLowerCase().includes(search.toLowerCase()))
+        : [];
+
+      // Progress bar simulation
+      useEffect(() => {
+        if (playing) {
+          progressRef.current = setInterval(() => {
+            setProgress((p) => {
+              if (p >= 100) {
+                return 0;
+              }
+              return p + 0.3;
+            });
+          }, 150);
+        } else {
+          if (progressRef.current) clearInterval(progressRef.current);
+        }
+        return () => { if (progressRef.current) clearInterval(progressRef.current); };
+      }, [playing]);
+
+      // AI DJ Playlist request using Gemini
+      const fetchSpotifyAIPleylist = async (query) => {
+        if (!query.trim()) return;
+        if (!apiKey) {
+          setErrorMsg("กรุณาใส่ API Key ในส่วนการตั้งค่าก่อนใช้ AI DJ!");
+          return;
+        }
+        setIsAiLoading(true);
+        setErrorMsg("");
+        try {
+          const systemPrompt = `You are a world-class Spotify Music Curator and DJ helper. Create a highly engaging and matching playlist of exactly 6 real-world popular tracks on Spotify that fit the user's current mood or custom request: "${query}". Make sure to choose highly matching popular songs (e.g., Thai pop hits, K-Pop, indie rock, chill electronic, Lofi). Conform strictly to the JSON schema output. Generate beautiful bilingual lyric blocks (Thai lyrics with adjacent English translation lines) for each song so they render nicely inside our lyrics display module.`;
+
+          const userPrompt = `Generate exactly 6 Spotify hits for: "${query}".`;
+
+          const payload = {
+            contents: [{ parts: [{ text: userPrompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    id: { type: "INTEGER" },
+                    title: { type: "STRING" },
+                    artist: { type: "STRING" },
+                    duration: { type: "STRING" },
+                    album: { type: "STRING" },
+                    mood: { type: "STRING" },
+                    lyrics: { type: "STRING", description: "Bilingual lyrics (verses of Thai followed immediately by English translation equivalent in a poetic song layout)." }
+                  },
+                  required: ["id", "title", "artist", "duration", "album", "mood", "lyrics"]
+                }
+              }
+            },
+            systemInstruction: {
+              parts: [{ text: systemPrompt }]
+            }
+          };
+
+          // Primary model: gemini-2.5-flash for reliability and speed
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+          
+          let response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            // Fallback to gemini-1.5-flash
+            const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            response = await fetch(fallbackUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error("Unable to contact Gemini Spotify AI backend.");
+          }
+
+          const result = await response.json();
+          const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+          
+          if (text) {
+            const parsedSongs = JSON.parse(text);
+            if (Array.isArray(parsedSongs) && parsedSongs.length > 0) {
+              setCustomPlaylist(parsedSongs);
+              setCurrentSong(parsedSongs[0]);
+              setProgress(0);
+              setPlaying(true);
+            } else {
+              throw new Error("Empty list returned");
+            }
+          } else {
+            throw new Error("Invalid response content structure");
+          }
+        } catch (err) {
+          console.error(err);
+          setErrorMsg("ไม่พบรายการจากเครือข่าย AI Spotify ในขณะนี้ กรุณาลองกรอกอีกครั้ง!");
+        } finally {
+          setIsAiLoading(false);
+        }
+      };
+
+      const currentGradient = MOOD_GRADIENTS[currentSong.mood] || MOOD_GRADIENTS.calm;
+      const currentEmotionConfig = EMOTIONS.find((e) => e.id === currentSong.mood) || EMOTIONS[6];
+
+      return (
+        <div className={`min-h-screen bg-gradient-to-b ${currentEmotionConfig.bgGradient} text-white flex flex-col transition-all duration-1000 relative overflow-hidden`}>
+          {/* Dynamic Background Glow Sphere */}
+          <div
+            className="absolute top-[-20%] left-[20%] w-[60vw] h-[60vw] rounded-full blur-[120px] transition-all duration-1000 pointer-events-none z-0"
+            style={{ backgroundColor: currentEmotionConfig.glowColor }}
+          />
+
+          {/* Top Bar */}
+          <div className="flex flex-col md:flex-row md:items-center gap-3 px-6 py-4 border-b border-neutral-800 bg-neutral-950/70 backdrop-blur-md sticky top-0 z-40">
+            <div className="flex items-center gap-2">
+              <button onClick={onExit} className="flex items-center gap-1.5 text-neutral-400 hover:text-white transition-colors text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-neutral-800">
+                <X size={13} /> ออก (Exit)
+              </button>
+              <button onClick={onBack} className="flex items-center gap-1.5 text-neutral-400 hover:text-white transition-colors text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-neutral-800">
+                <ArrowLeft size={13} /> คืนอารมณ์ (Back)
+              </button>
+            </div>
+
+            {/* Search Engine dropdown */}
+            <div className="flex-1 relative mx-0 md:mx-4">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="พิมพ์หาศิลปิน เพลงโปรด หรือเพลงไทยในคลังเพลง..."
+                className="w-full bg-neutral-900/90 border border-neutral-800 rounded-full pl-10 pr-4 py-2 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:border-[#1DB954] transition-colors font-nunito"
+              />
+              {search && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden z-50 shadow-2xl">
+                  {filtered.length > 0 ? (
+                    filtered.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          setCurrentSong(s);
+                          setPlaying(true);
+                          setProgress(0);
+                          setSearch("");
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1DB954]/10 text-left transition-colors border-b border-neutral-800/40 group"
+                      >
+                        <MiniSongCover mood={s.mood} title={s.title} />
+                        <div className="ml-1">
+                          <p className="text-xs text-white font-bold font-nunito">{s.title}</p>
+                          <p className="text-[10px] text-neutral-400 font-nunito">{s.artist} · {s.album}</p>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-xs text-neutral-500 font-nunito">
+                      ไม่พบเพลงในฐานข้อมูลปกติ
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Emotion Display Badge */}
+            <div className="flex items-center justify-between md:justify-end gap-2 text-xs text-neutral-300 bg-neutral-900/90 border border-neutral-800/60 rounded-full px-4 py-1.5 self-start md:self-auto backdrop-blur-sm">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#1DB954] animate-pulse" />
+                <span className="font-extrabold text-[#1DB954] text-[10px] tracking-wide">SPOTIFY CO-PILOT</span>
+              </div>
+              <span className="text-neutral-500">|</span>
+              <div className="flex items-center gap-1">
+                <span>{currentEmotionConfig.emoji}</span>
+                <span className="font-nunito">{currentEmotionConfig.label} ({currentEmotionConfig.thai})</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Grid Content */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-0 overflow-hidden relative z-10">
+            
+            {/* Left column: Music Player View */}
+            <div className="lg:col-span-2 flex flex-col items-center gap-6 p-8 border-r border-neutral-800/40 bg-neutral-950/40 backdrop-blur-sm overflow-y-auto">
+              
+              {/* Cover Art Sleeve and Rotating Album effect */}
+              <div className="relative w-72 h-60 flex-shrink-0 flex items-center justify-center">
+                
+                {/* Spinning Vinyl Record */}
+                <div 
+                  className={`absolute right-4 w-48 h-48 rounded-full bg-[#111111] border-4 border-neutral-800 shadow-2xl flex items-center justify-center transition-all duration-1000 ${
+                    playing ? "animate-spin-slow" : ""
+                  }`}
+                  style={{
+                    backgroundImage: `radial-gradient(circle, #222 20%, #111 21%, #111 25%, #222 26%, #111 30%, #111 35%, #222 36%, #111 40%, #111 45%, #222 46%, #111 50%, #111 55%, #222 56%, #111 60%)`,
+                    transform: playing ? "translateX(24px) rotate(360deg)" : "translateX(8px) rotate(0deg)"
+                  }}
+                >
+                  {/* Miniature Center Cover label inside Record */}
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-neutral-900 relative">
+                    {coverUrl ? (
+                      <img src={coverUrl} alt="label" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={`w-full h-full bg-gradient-to-tr ${currentGradient}`} />
+                    )}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-black border border-neutral-800" />
+                  </div>
+                </div>
+
+                {/* Front Album Sleeve Cover (Square) */}
+                <div className="absolute left-4 w-48 h-48 rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 border border-neutral-800/80 group">
+                  {isCoverLoading ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-white gap-2 px-3 text-center">
+                      <Sparkles className="w-8 h-8 text-[#1DB954] animate-spin" />
+                      <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider font-nunito">
+                        AI กำลังวาดหน้าปก...
+                      </p>
+                    </div>
+                  ) : coverUrl ? (
+                    <img 
+                      src={coverUrl} 
+                      alt={currentSong.title} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                    />
+                  ) : (
+                    /* Fallback Graphic Gradient cover card if offline or limits hit */
+                    <div className={`w-full h-full bg-gradient-to-tr ${currentGradient} relative p-4 flex flex-col justify-between`}>
+                      <div className="flex justify-between items-start">
+                        <span className="text-xl">💿</span>
+                        <span className="bg-black/30 backdrop-blur-md text-[9px] font-bold px-2 py-0.5 rounded-full text-white uppercase font-nunito">
+                          {currentSong.mood}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white leading-tight drop-shadow-md truncate font-lora">
+                          {currentSong.title}
+                        </h4>
+                        <p className="text-[10px] text-white/85 font-bold truncate drop-shadow-sm mt-0.5 font-nunito">
+                          {currentSong.artist}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Glassmorphic overlay badge on top left */}
+                  {coverUrl && (
+                    <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] text-neutral-300 font-bold tracking-wider font-nunito">
+                      IMAGEN AI
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              <div className="w-full flex flex-col gap-4">
+                <div className="text-center">
+                  <p className="text-xl font-black text-white font-lora">{currentSong.title}</p>
+                  <p className="text-xs text-neutral-400 font-semibold mt-1 font-nunito">
+                    {currentSong.artist} · <span className="text-[#1DB954]">{currentSong.album}</span>
+                  </p>
+                </div>
+
+                {/* Slider progress */}
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <div 
+                    className="w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden cursor-pointer group"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setProgress(((e.clientX - rect.left) / rect.width) * 100);
+                    }}
+                  >
+                    <div 
+                      className="h-full bg-gradient-to-r from-[#1DB954] to-emerald-400 rounded-full transition-all duration-150 group-hover:bg-emerald-300" 
+                      style={{ width: `${progress}%` }} 
+                    />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-neutral-500 font-bold font-nunito">
+                    <span>{Math.floor(progress * 3.42 / 100)}:{String(Math.floor((progress * 3.42 / 100 % 1) * 60)).padStart(2, "0")}</span>
+                    <span>{currentSong.duration}</span>
+                  </div>
+                </div>
+
+                {/* Controller Buttons */}
+                <div className="flex items-center justify-center gap-6">
+                  <button 
+                    onClick={() => setProgress(0)} 
+                    className="text-neutral-500 hover:text-white transition-colors p-2 text-sm"
+                    title="ย้อนเริ่มใหม่"
+                  >
+                    ⏮
+                  </button>
+                  <button
+                    onClick={() => setPlaying((v) => !v)}
+                    className="w-14 h-14 rounded-full bg-[#1DB954] flex items-center justify-center text-black shadow-xl shadow-[#1DB954]/20 hover:scale-105 active:scale-95 transition-all"
+                  >
+                    {playing ? <Pause size={22} /> : <Play size={22} className="ml-0.5" />}
+                  </button>
+                  <button 
+                    onClick={() => setProgress(99)} 
+                    className="text-neutral-500 hover:text-white transition-colors p-2 text-sm"
+                    title="ข้ามเพลง"
+                  >
+                    ⏭
+                  </button>
+                </div>
+              </div>
+
+              {/* AI SPOTIFY LIVE DJ WIDGET PANEL */}
+              <div className="w-full bg-neutral-900/50 backdrop-blur-md border border-neutral-800 rounded-3xl p-4 mt-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#1DB954]/5 rounded-full blur-2xl pointer-events-none" />
+                
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="text-[#1DB954] animate-pulse" size={16} />
+                  <p className="text-[11px] font-bold text-white uppercase tracking-wider font-nunito">
+                    AI Spotify Live DJ
+                  </p>
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${apiKey ? 'bg-[#1DB954]/20 text-[#1DB954]' : 'bg-amber-500/20 text-amber-400'}`}>
+                    {apiKey ? 'ONLINE' : 'SETUP REQUIRED'}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-neutral-400 mb-3 font-nunito leading-normal">
+                  {apiKey ? 'สั่งให้ AI คัดสรรเพลงจริงบนชาร์ต Spotify ได้ตามใจชอบ เช่น: "ขอเพลงอินดี้ไทยฟังสบายช่วงสายฝนพรำ"' : 'กรุณาใส่ API Key ในส่วนตั้งค่าก่อนเพื่อเปิดระบบ AI DJ จัดเพลงสดแบบกำหนดเอง'}
+                </p>
+
+                <div className="flex gap-2">
+                  <input
+                    value={customQuery}
+                    onChange={(e) => setCustomQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isAiLoading) {
+                        fetchSpotifyAIPleylist(customQuery);
+                      }
+                    }}
+                    disabled={isAiLoading || !apiKey}
+                    placeholder="พิมพ์คำสั่งขอกับ AI ดีเจส่วนตัวของคุณ..."
+                    className="flex-1 bg-neutral-950/80 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#1DB954] disabled:opacity-50 font-nunito"
+                  />
+                  <button
+                    onClick={() => fetchSpotifyAIPleylist(customQuery)}
+                    disabled={isAiLoading || !customQuery.trim() || !apiKey}
+                    className="bg-[#1DB954] hover:bg-emerald-400 text-black font-extrabold text-xs px-3 py-2 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[64px]"
+                  >
+                    {isAiLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-black" />
+                    ) : (
+                      "จัดเพลง"
+                    )}
+                  </button>
+                </div>
+
+                {errorMsg && (
+                  <p className="text-[10px] text-red-400 mt-2 font-semibold font-nunito">{errorMsg}</p>
+                )}
+
+                {/* Quick Chips suggestions */}
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {["เพลงสากลชิลมาก", "เพลงไทยอกหักซึ้งๆ", "K-Pop เต้นรำตื่นเต้น"].map((chip) => (
+                    <button
+                      key={chip}
+                      onClick={() => {
+                        setCustomQuery(chip);
+                        fetchSpotifyAIPleylist(chip);
+                      }}
+                      disabled={isAiLoading || !apiKey}
+                      className="bg-neutral-800/80 hover:bg-neutral-800 text-[10px] text-neutral-400 hover:text-white px-2.5 py-1 rounded-full transition-all border border-neutral-800 disabled:opacity-40 font-nunito"
+                    >
+                      #{chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right column: Lyrics & Active Spotify Playlist */}
+            <div className="lg:col-span-3 flex flex-col overflow-hidden bg-neutral-950/20 backdrop-blur-sm">
+              
+              {/* Beautiful Bilingual Lyrics panel */}
+              <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-5 border-b border-neutral-800/60">
+                <div className="flex items-center justify-between border-b border-neutral-800/40 pb-3">
+                  <h3 className="text-xs font-bold text-neutral-400 tracking-widest uppercase flex items-center gap-1.5 font-nunito">
+                    <span>🎤</span> เนื้อร้องสองภาษา · Bilingual Lyrics
+                  </h3>
+                  <div className="flex items-center gap-1 bg-[#1DB954]/10 text-[#1DB954] text-[9px] font-black px-2.5 py-1 rounded-full border border-[#1DB954]/20 animate-pulse font-nunito">
+                    <span>⚡</span> SYNCED
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-6 select-text max-w-2xl">
+                  {currentSong.lyrics ? (
+                    currentSong.lyrics.split("\n\n").map((block, i) => (
+                      <p key={i} className="text-sm leading-7 text-neutral-200 whitespace-pre-line bg-neutral-900/20 p-4 rounded-2xl hover:bg-neutral-900/40 transition-colors border border-neutral-900/20 hover:border-neutral-800/40 font-nunito" style={{ wordBreak: "break-word" }}>
+                        {block}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-xs text-neutral-500 italic font-nunito">ไม่มีเนื้อเพลงสำหรับเพลงนี้</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Active Spotify Playlist Section */}
+              <div className="p-6 bg-neutral-950/60 backdrop-blur-md flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-neutral-400 tracking-widest uppercase font-nunito">
+                    เพลย์ลิสต์ Spotify ปัจจุบัน · Spotify Playlist ({activePlaylist.length} เพลง)
+                  </h3>
+                  {customPlaylist.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setCustomPlaylist([]);
+                        setErrorMsg("");
+                      }}
+                      className="text-[10px] text-[#1DB954] hover:underline font-bold font-nunito"
+                    >
+                      คืนค่าเริ่มต้น
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto max-h-[140px] pr-2">
+                  {activePlaylist.map((s) => {
+                    const isActive = currentSong.id === s.id;
+                    return (
+                      <button 
+                        key={s.id} 
+                        onClick={() => {
+                          setCurrentSong(s);
+                          setProgress(0);
+                          setPlaying(true);
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left group ${isActive ? "border-[#1DB954] bg-[#1DB954]/10" : "border-neutral-800 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50"}`}
+                      >
+                        {/* Mini Cover art */}
+                        <MiniSongCover mood={s.mood} title={s.title} />
+
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-xs truncate font-bold ${isActive ? "text-white" : "text-neutral-300"}`} style={{ fontFamily: "Nunito, sans-serif" }}>
+                            {s.title}
+                          </p>
+                          <p className="text-[10px] text-neutral-500 truncate mt-0.5 font-nunito">{s.artist}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 ml-auto">
+                          {isActive && playing && (
+                            <div className="flex items-end gap-[2px] h-3">
+                              <span className="w-[2.5px] h-3 bg-[#1DB954] rounded-full animate-sound-bar" style={{ animationDelay: '0s' }} />
+                              <span className="w-[2.5px] h-2 bg-[#1DB954] rounded-full animate-sound-bar" style={{ animationDelay: '0.2s' }} />
+                              <span className="w-[2.5px] h-3 bg-[#1DB954] rounded-full animate-sound-bar" style={{ animationDelay: '0.4s' }} />
+                            </div>
+                          )}
+                          <ChevronRight size={14} className="text-neutral-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Top Level App Component
+    function App() {
+      const [screen, setScreen] = useState("splash"); // splash, mood-select, player
+      const [selectedEmotion, setSelectedEmotion] = useState("calm");
+      const [customSearchQuery, setCustomSearchQuery] = useState("");
+      
+      const [apiKey, setApiKey] = useState(() => {
+        return localStorage.getItem("moodtune_api_key") || "";
+      });
+      const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+      const handleSaveApiKey = (key) => {
+        localStorage.setItem("moodtune_api_key", key);
+        setApiKey(key);
+      };
+
+      if (screen === "splash") {
+        return <SplashScreen onDone={() => setScreen("mood-select")} />;
+      }
+
+      return (
+        <div className="min-h-screen bg-neutral-950 text-white relative">
+          {screen === "mood-select" && (
+            <MoodSelectionScreen
+              onSelectEmotion={(emotion) => {
+                setSelectedEmotion(emotion);
+                setCustomSearchQuery("");
+                setScreen("player");
+              }}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              apiKey={apiKey}
+              onCustomSearch={(query) => {
+                setCustomSearchQuery(query);
+                // Match search words to find a style gradient
+                let matchedEmotion = "calm";
+                const q = query.toLowerCase();
+                if (q.includes("เหงา") || q.includes("เศร้า") || q.includes("sad") || q.includes("อกหัก")) matchedEmotion = "sad";
+                else if (q.includes("รัก") || q.includes("สุข") || q.includes("happy") || q.includes("ยิ้ม")) matchedEmotion = "happy";
+                else if (q.includes("เต้น") || q.includes("มันส์") || q.includes("excited") || q.includes("สนุก")) matchedEmotion = "excited";
+                else if (q.includes("โกรธ") || q.includes("เกลียด") || q.includes("angry") || q.includes("แค้น")) matchedEmotion = "angry";
+                else if (q.includes("ตกใจ") || q.includes("surprised") || q.includes("ตกใจหมด")) matchedEmotion = "surprised";
+                else if (q.includes("กลัว") || q.includes("fear") || q.includes("ผี")) matchedEmotion = "fearful";
+                else if (q.includes("เกลียด") || q.includes("disgust") || q.includes("แหวะ")) matchedEmotion = "disgusted";
+                
+                setSelectedEmotion(matchedEmotion);
+                setScreen("player");
+              }}
+            />
+          )}
+
+          {screen === "player" && (
+            <MusicPage
+              emotion={selectedEmotion}
+              onBack={() => setScreen("mood-select")}
+              onExit={() => setScreen("mood-select")}
+              apiKey={apiKey}
+              initialCustomQuery={customSearchQuery}
+            />
+          )}
+
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            apiKey={apiKey}
+            onSave={handleSaveApiKey}
+          />
+        </div>
+      );
+    }
+
+    // Render Root
+    const container = document.getElementById("root");
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
